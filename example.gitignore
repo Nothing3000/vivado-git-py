@@ -7,3 +7,5 @@
 /workspace.bak/
 .Xil/
 /run-*
+/sources/*/*/*/ip/*/*
+!/sources/*/*/*/ip/*/*.xci

@@ -34,8 +34,8 @@ def processTcl(tclInFile, tclOutFile, projectName, projectPath):
     fileList = False
     commentCounter = 0
     bdPaths = sorted(Path(".").glob("workspace/*/*/*/bd"))
-    sourceFiles = {}
-    targetFiles = {}
+    blockDesignsWrapperPatterns = []
+    bdWrapper = False
     workspaceSourcePath = projectPath.parent.resolve()
     targetSourcePath = Path("./sources/" + projectName)
     
@@ -68,18 +68,31 @@ def processTcl(tclInFile, tclOutFile, projectName, projectPath):
                     fileList = False
                 fileMatch = re.search(r"""^#\s+"(.*)"$""",line)
                 if fileMatch:
-                    filePath = Path(fileMatch.group(1))
-                    interPath = filePath.resolve().relative_to(workspaceSourcePath)
-                    targetPath = targetSourcePath / interPath
-                    targetPath.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(filePath,targetPath)
+                    bdMatch = re.search(r"\/bd\/(.*)\/hdl\/",line)
+                    if bdMatch:
+                        blockDesignsWrapperPatterns.append(re.compile(r"^set file \"hdl/"+bdMatch.group(1)+"_wrapper.vhd\"$"))
+                    else:
+                        filePath = Path(fileMatch.group(1))
+                        interPath = filePath.resolve().relative_to(workspaceSourcePath)
+                        targetPath = targetSourcePath / interPath
+                        targetPath.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(filePath,targetPath)
 
             if re.search(r"\/workspace\/", line):
+                if re.search(r"\/bd\/",line):
+                    keepLine = False
                 line = line.replace("/workspace/","/sources/")
 
             match = re.search(r"set imported_files \[import_files -fileset (\S+) ", line)
             if match:
                 line = "add_files -norecurse -fileset [get_filesets "+match.group(1)+"] $files"
+
+            for pattern in blockDesignsWrapperPatterns:
+                if bdWrapper or pattern.search(line):
+                    bdWrapper = True
+                    keepLine = False
+                    if re.search(r"^\s*$",line):
+                        bdWrapper = False
 
             match = re.search(r"^set file_imported \[import_files -fileset (\S+) \$file\]$", line)
             if match:
@@ -87,7 +100,18 @@ def processTcl(tclInFile, tclOutFile, projectName, projectPath):
                             
             if keepLine:
                 tclOut.write(line)
-               
+
+            if re.search(r"^puts \"INFO: Project created:\$project_name\"$",line):
+                tclOut.write("\n")
+                tclOut.write("puts \"INFO: BEGINNING TO RECONSTRUCT BLOCK DESIGN WRAPPERS\"\n")
+                tclOut.write("foreach {bd_file} [glob workspace/"+projectName+"/"+projectName+".srcs/*/bd/*/*.bd] {\n")
+                tclOut.write("  make_wrapper -files [get_files $bd_file] -top\n")
+                tclOut.write("  }\n")
+                tclOut.write("foreach {wrapper_file} [glob workspace/"+projectName+"/"+projectName+".srcs/*/bd/*/hdl/*_wrapper.vhd] {\n")
+                tclOut.write("  add_files -norecurse $wrapper_file\n")
+                tclOut.write("  }\n")
+                tclOut.write("puts \"INFO: WRAPPERS CREATED\"\n")
+                
 
 def main():
     if not checkVersion():
@@ -111,7 +135,7 @@ def main():
         processTcl(".exported.tcl", ".processed.tcl", projectName, projectPath)
 
         shutil.move(".processed.tcl","./sources/"+projectName+".tcl")
-        Path(".exported.tcl").unlink()
+        shutil.move(".exported.tcl","./sources/"+projectName+".tcl.raw")
 
         print("~~~")
         print("~~~ Finished processing project "+projectName)
