@@ -15,13 +15,13 @@ def checkVersion():
     if repoVersion == None:
         print("Unable to detect the Vivado version in use in this repository.\n")
         return False
-    if not re.search("Vivado[\\\/]"+repoVersion+"[\\\/]bin;", os.environ["PATH"]):
+    if not re.search("Vivado[\\\/]"+repoVersion+"[\\\/]bin[;:]", os.environ["PATH"]):
         print("You are not running Vivado "+repoVersion+" or have not sourced the environment initialization scripts.  Aborting.\n")
         return False
     return True
 
 def generateTcl(projectPath):
-    p = subprocess.Popen(['vivado', '-nojournal', '-nolog', '-mode', 'tcl', str(projectPath)],
+    p = subprocess.Popen("vivado -nojournal -nolog -mode tcl "+str(projectPath),
                          stdin=subprocess.PIPE,
                          shell=True)
 
