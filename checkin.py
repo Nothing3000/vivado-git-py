@@ -113,6 +113,15 @@ def processTcl(tclInFile, tclOutFile, projectName, projectPath):
                 tclOut.write("puts \"INFO: WRAPPERS CREATED\"\n")
                 
 
+def cleanIps():
+    ipPaths = Path(".").glob("sources/*/*/*/ip/*/*.xci")
+    for ipPath in ipPaths:
+        shutil.move(ipPath,"./"+ipPath.name)
+        shutil.rmtree(ipPath.parent)
+        ipPath.parent.mkdir(parents = True, exist_ok=True)
+        shutil.move("./"+ipPath.name,ipPath)
+
+
 def main():
     if not checkVersion():
         return False
@@ -136,6 +145,11 @@ def main():
 
         shutil.move(".processed.tcl","./sources/"+projectName+".tcl")
         shutil.move(".exported.tcl","./sources/"+projectName+".tcl.raw")
+
+        print("~~~ Finished Rewriting Project TCL")
+        print("~~~ Removing excess ip Files")
+
+        cleanIps()
 
         print("~~~")
         print("~~~ Finished processing project "+projectName)
