@@ -18,7 +18,7 @@ def checkVersion():
     return True
 
 def executeTcl(tclPath):
-    p = subprocess.Popen("vivado -mode batch -nojournal -nolog' -source "+str(tclPath),
+    p = subprocess.Popen("vivado -mode batch -nojournal -nolog -source "+str(tclPath),
                          shell=True)
     p.communicate()
 
